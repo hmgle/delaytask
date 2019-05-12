@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type job struct {
+type Job struct {
 	id    string
 	fn    func()
 	delay time.Duration
@@ -39,7 +39,7 @@ func New() *Task {
 			v, ok := t.tm.Load(id)
 			if ok {
 				t.tm.Delete(id)
-				j := v.(*job)
+				j := v.(*Job)
 				wg.Add(1)
 				go func() {
 					j.fn()
@@ -54,7 +54,7 @@ func New() *Task {
 }
 
 // AddJob add a delay job task.
-func (t *Task) AddJob(j *job) {
+func (t *Task) AddJob(j *Job) {
 	if j.delay > 0 {
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
@@ -72,7 +72,7 @@ func (t *Task) AddJob(j *job) {
 
 // AddJobFn add a delay job by func to task.
 func (t *Task) AddJobFn(id string, fn func(), delay ...time.Duration) {
-	j := &job{
+	j := &Job{
 		id: id,
 		fn: fn,
 	}
