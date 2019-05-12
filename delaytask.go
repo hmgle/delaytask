@@ -7,10 +7,11 @@ import (
 	"time"
 )
 
+// Job defines a job.
 type Job struct {
-	id    string
-	fn    func()
-	delay time.Duration
+	ID    string
+	Fn    func()
+	Delay time.Duration
 }
 
 // Task defines a task.
@@ -42,7 +43,7 @@ func New() *Task {
 				j := v.(*Job)
 				wg.Add(1)
 				go func() {
-					j.fn()
+					j.Fn()
 					wg.Done()
 				}()
 			}
@@ -55,34 +56,34 @@ func New() *Task {
 
 // AddJob add a delay job task.
 func (t *Task) AddJob(j *Job) {
-	if j.delay > 0 {
+	if j.Delay > 0 {
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
 			select {
-			case <-time.After(j.delay):
-				t.waitCh <- j.id
+			case <-time.After(j.Delay):
+				t.waitCh <- j.ID
 			case <-ctx.Done():
-				t.waitCh <- j.id
+				t.waitCh <- j.ID
 			}
 		}(t.ctx)
 	}
-	t.tm.Store(j.id, j)
+	t.tm.Store(j.ID, j)
 }
 
 // AddJobFn add a delay job by func to task.
 func (t *Task) AddJobFn(id string, fn func(), delay ...time.Duration) {
 	j := &Job{
-		id: id,
-		fn: fn,
+		ID: id,
+		Fn: fn,
 	}
 	if len(delay) > 0 {
-		j.delay = delay[0]
+		j.Delay = delay[0]
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
 			select {
-			case <-time.After(j.delay):
+			case <-time.After(j.Delay):
 				t.waitCh <- id
 			case <-ctx.Done():
 				t.waitCh <- id
