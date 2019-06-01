@@ -11,6 +11,10 @@ import (
 var tsk = delaytask.New()
 
 func TestDelayTaskAdd(t *testing.T) {
+	tsk.AddJobFn("cancel", func() {
+		log.Printf("my ID: cancel\n")
+	}, time.Millisecond*50)
+
 	tsk.AddJobFn("foo", func() {
 		log.Printf("my ID: foo\n")
 		time.Sleep(time.Millisecond * 500)
@@ -25,6 +29,7 @@ func TestDelayTaskAdd(t *testing.T) {
 }
 
 func TestTaskExe(t *testing.T) {
+	tsk.Cancel("cancel")
 	tsk.Execute("foo")
 	tsk.Execute("no this id")
 	time.Sleep(time.Millisecond * 50)

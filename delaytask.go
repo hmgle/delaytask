@@ -98,6 +98,11 @@ func (t *Task) Execute(id string) {
 	t.waitCh <- id
 }
 
+// Cancel the job.
+func (t *Task) Cancel(id string) {
+	t.tm.Delete(id)
+}
+
 // Stop the task.
 func (t *Task) Stop() <-chan bool {
 	t.cancel()
