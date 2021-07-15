@@ -12,6 +12,8 @@ type Job struct {
 	ID    string
 	Fn    func()
 	Delay time.Duration
+
+	timer *time.Timer
 }
 
 // Task defines a task.
@@ -57,11 +59,12 @@ func New() *Task {
 // AddJob add a delay job task.
 func (t *Task) AddJob(j *Job) {
 	if j.Delay > 0 {
+		j.timer = time.NewTimer(j.Delay)
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
 			select {
-			case <-time.After(j.Delay):
+			case <-j.timer.C:
 				t.waitCh <- j.ID
 			case <-ctx.Done():
 				t.waitCh <- j.ID
@@ -79,11 +82,12 @@ func (t *Task) AddJobFn(id string, fn func(), delay ...time.Duration) {
 	}
 	if len(delay) > 0 {
 		j.Delay = delay[0]
+		j.timer = time.NewTimer(j.Delay)
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
 			select {
-			case <-time.After(j.Delay):
+			case <-j.timer.C:
 				t.waitCh <- id
 			case <-ctx.Done():
 				t.waitCh <- id
@@ -101,6 +105,21 @@ func (t *Task) Execute(id string) {
 // Cancel the job.
 func (t *Task) Cancel(id string) {
 	t.tm.Delete(id)
+}
+
+// Reset changes the job's timer to expire after duration d.
+// It returns true if the timer had been active, false if the timer had
+// expired or been stopped.
+func (t *Task) Reset(id string, d time.Duration) bool {
+	v, ok := t.tm.Load(id)
+	if !ok {
+		return false
+	}
+	j := v.(*Job)
+	if j.timer != nil {
+		return j.timer.Reset(d)
+	}
+	return false
 }
 
 // Stop the task.
