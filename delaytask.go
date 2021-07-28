@@ -13,7 +13,8 @@ type Job struct {
 	Fn    func()
 	Delay time.Duration
 
-	timer *time.Timer
+	timer       *time.Timer
+	whenExecute time.Duration
 }
 
 // Task defines a task.
@@ -60,6 +61,7 @@ func New() *Task {
 func (t *Task) AddJob(j *Job) {
 	if j.Delay > 0 {
 		j.timer = time.NewTimer(j.Delay)
+		j.whenExecute = time.Duration(time.Now().UnixNano()) + j.Delay
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
@@ -70,6 +72,8 @@ func (t *Task) AddJob(j *Job) {
 				t.waitCh <- j.ID
 			}
 		}(t.ctx)
+	} else {
+		j.whenExecute = -1
 	}
 	t.tm.Store(j.ID, j)
 }
@@ -77,12 +81,14 @@ func (t *Task) AddJob(j *Job) {
 // AddJobFn add a delay job by func to task.
 func (t *Task) AddJobFn(id string, fn func(), delay ...time.Duration) {
 	j := &Job{
-		ID: id,
-		Fn: fn,
+		ID:          id,
+		Fn:          fn,
+		whenExecute: -1,
 	}
 	if len(delay) > 0 {
 		j.Delay = delay[0]
 		j.timer = time.NewTimer(j.Delay)
+		j.whenExecute = time.Duration(time.Now().UnixNano()) + j.Delay
 		atomic.AddInt64(&t.atomWaitCnt, 1)
 		go func(ctx context.Context) {
 			defer atomic.AddInt64(&t.atomWaitCnt, -1)
@@ -95,6 +101,16 @@ func (t *Task) AddJobFn(id string, fn func(), delay ...time.Duration) {
 		}(t.ctx)
 	}
 	t.tm.Store(id, j)
+}
+
+// WhenExecute returns d as a Unix time, the number of nanoseconds
+// elapsed since January 1, 1970 UTC of the delayed job's execution time.
+func (t *Task) WhenExecute(id string) (d time.Duration) {
+	v, ok := t.tm.Load(id)
+	if !ok {
+		return -1
+	}
+	return v.(*Job).whenExecute
 }
 
 // Execute the job immediately.
