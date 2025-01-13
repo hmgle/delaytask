@@ -141,10 +141,7 @@ func (t *Task) Reset(id string, d time.Duration) bool {
 // Stop the task, the unexpired jobs will be executed immediately.
 func (t *Task) Stop() <-chan bool {
 	t.cancel()
-	for {
-		if atomic.LoadInt64(&t.atomWaitCnt) == 0 {
-			break
-		}
+	for atomic.LoadInt64(&t.atomWaitCnt) != 0 {
 		time.Sleep(time.Millisecond * 10)
 	}
 	close(t.waitCh)
@@ -153,10 +150,7 @@ func (t *Task) Stop() <-chan bool {
 
 // GracefulExit the task until all jobs are completed.
 func (t *Task) GracefulExit() <-chan bool {
-	for {
-		if atomic.LoadInt64(&t.atomWaitCnt) == 0 {
-			break
-		}
+	for atomic.LoadInt64(&t.atomWaitCnt) != 0 {
 		time.Sleep(time.Millisecond * 10)
 	}
 	close(t.waitCh)
